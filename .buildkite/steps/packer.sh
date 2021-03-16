@@ -1,11 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-if [[ -z "${BUILDKITE_AWS_STACK_BUCKET}" ]] ; then
-  echo "Must set an s3 bucket in BUILDKITE_AWS_STACK_BUCKET for temporary files"
-  exit 1
-fi
-
 os="${1:-linux}"
 arch="${2:-amd64}"
 agent_binary="buildkite-agent-${os}-${arch}"
@@ -29,17 +24,12 @@ packer_hash=$(echo "$packer_files_sha" "$arch" "$stable_agent_sha" "$unstable_ag
 echo "Packer image hash for ${os}/${arch} is ${packer_hash}"
 packer_file="packer-${packer_hash}-${os}-${arch}.output"
 
-# Only build packer image if one with the same hash doesn't exist, and we're not being forced
-if [[ -n "${PACKER_REBUILD:-}" ]] || ! aws s3 cp "s3://${BUILDKITE_AWS_STACK_BUCKET}/${packer_file}" . ; then
-  make "packer-${os}-${arch}.output"
-  aws s3 cp "packer-${os}-${arch}.output" "s3://${BUILDKITE_AWS_STACK_BUCKET}/${packer_file}"
-  mv "packer-${os}-${arch}.output" "${packer_file}"
-else
-  echo "Skipping packer build, no changes"
-fi
+make "packer-${os}-${arch}.output"
+mv "packer-${os}-${arch}.output" "${packer_file}"
 
 # Get the image id from the packer build output for later steps
 image_id=$(grep -Eo "${AWS_REGION}: (ami-.+)$" "$packer_file" | awk '{print $2}')
 echo "AMI for ${AWS_REGION} is $image_id"
 
 buildkite-agent meta-data set "${os}_${arch}_image_id" "$image_id"
+buildkite-agent annotate "GPU AMI: $image_id" --style 'success'
