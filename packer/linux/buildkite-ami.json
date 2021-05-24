@@ -3,7 +3,7 @@
     "region": "us-east-1",
     "arch": "x86_64",
     "goarch": "amd64",
-    "instance_type": "m5.xlarge"
+    "instance_type": "g4dn.xlarge"
   },
 
   "builders": [
@@ -12,18 +12,17 @@
       "region": "{{user `region`}}",
       "source_ami_filter": {
         "filters": {
-          "name": "amzn2-ami-hvm-2.0.*-gp2",
+          "name": "amzn2-ami-graphics-hvm-2.0.*-x86_64-gp2*",
           "architecture": "{{user `arch`}}",
           "virtualization-type": "hvm"
         },
-        "owners": ["amazon"],
+        "owners": ["679593333241"],
         "most_recent": true
       },
       "instance_type": "{{user `instance_type`}}",
       "ssh_username": "ec2-user",
-      "ami_name": "buildkite-stack-linux-{{user `arch`}}-{{isotime | clean_resource_name}}",
-      "ami_description": "Buildkite Elastic Stack (Amazon Linux 2 LTS w/ docker)",
-      "ami_groups": ["all"]
+      "ami_name": "buildkite-stack-linux-gpu-{{user `arch`}}-{{isotime | clean_resource_name}}",
+      "ami_description": "Buildkite Elastic Stack (Amazon Linux 2 LTS w/ nvidia-docker)"
     }
   ],
   "provisioners": [
@@ -60,6 +59,10 @@
     },
     {
       "type": "shell",
+      "script": "scripts/install-nvidia-docker.sh"
+    },
+    {
+      "type": "shell",
       "script": "scripts/install-buildkite-agent.sh"
     },
     {
@@ -72,10 +75,7 @@
     },
     {
       "type": "shell",
-      "inline": [
-        "rm /home/ec2-user/.ssh/authorized_keys"
-      ]
+      "inline": ["rm /home/ec2-user/.ssh/authorized_keys"]
     }
   ]
 }
-
